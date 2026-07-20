@@ -13,16 +13,16 @@ const AUTO_ACCESS = process.env.AUTO_ACCESS || false; // false关闭自动保活
 const FILE_PATH = process.env.FILE_PATH || './tmp';   // 运行目录,sub节点文件保存目录
 const SUB_PATH = process.env.SUB_PATH || 'sub';       // 订阅路径
 const PORT = process.env.WORKER_PORT || 3000;        // http服务订阅端口（固定3000，不读取平台PORT）
-const UUID = process.env.UUID || '7032bda8-d004-4dac-9c91-7bc70ca76f0d'; // 使用哪吒v1,在不同的平台运行需修改UUID,否则会覆盖
+const UUID = process.env.UUID || '6a5ef30f-0c4a-40f2-b7f3-04b0b234f2eb'; // 使用哪吒v1,在不同的平台运行需修改UUID,否则会覆盖
 const NEZHA_SERVER = process.env.NEZHA_SERVER || 'nz.wwl.kdns.fr:443';        // 哪吒v1填写形式: nz.abc.com:8008  哪吒v0填写形式：nz.abc.com
 const NEZHA_PORT = process.env.NEZHA_PORT || '';            // 使用哪吒v1请留空，哪吒v0需填写
 const NEZHA_KEY = process.env.NEZHA_KEY || 'HvfRw5cDcTBC1G38bin6eOgALoA4fldF';              // 哪吒v1的NZ_CLIENT_SECRET或哪吒v0的agent密钥
-const ARGO_DOMAIN = process.env.ARGO_DOMAIN || 'anodes668.xfwwl.dpdns.org';          // 固定隧道域名,留空即启用临时隧道
-const ARGO_AUTH = process.env.ARGO_AUTH || 'eyJhIjoiMjA3ZmVmNzA5MjkyMTkyNWZiNDVmNDRhYWVhMmViNmYiLCJ0IjoiMGUxODE1MDAtNWFmMC00YWU2LWJiZjUtN2NlZmJlYTNlZDJlIiwicyI6Ik0yRXpNMkl4WXpBdE1tSmxaQzAwWVRaakxUZzVZamt0WlRReFlUVXlOVFV6WXpOaSJ9';              // 固定隧道密钥json或token,留空即启用临时隧道,json获取地址：https://json.zone.id
+const ARGO_DOMAIN = process.env.ARGO_DOMAIN || 'belmo668.xfwwl.dpdns.org';          // 固定隧道域名,留空即启用临时隧道
+const ARGO_AUTH = process.env.ARGO_AUTH || 'eyJhIjoiMjA3ZmVmNzA5MjkyMTkyNWZiNDVmNDRhYWVhMmViNmYiLCJ0IjoiMDk2ODlmZDUtNGRjNS00OTIzLWFkNTgtODYyNGE4NDg1MzA5IiwicyI6Ik1EZGhOREUzTldRdE1XTTVOUzAwTkdSbUxXSXhPV010TmpVMFpUTmtNamsxTlRVdyJ9';              // 固定隧道密钥json或token,留空即启用临时隧道,json获取地址：https://json.zone.id
 const ARGO_PORT = process.env.ARGO_PORT || 8001;            // 固定隧道端口,需和PORT一致
 const CFIP = process.env.CFIP || 'www.dbs.com';        // 节点优选域名或优选ip  
 const CFPORT = process.env.CFPORT || 443;                   // 节点优选域名或优选ip对应的端口
-const NAME = process.env.NAME || 'anodes668_';                        // 节点名称
+const NAME = process.env.NAME || 'belmo668_';                        // 节点名称
 
 // 创建运行文件夹
 if (!fs.existsSync(FILE_PATH)) {
