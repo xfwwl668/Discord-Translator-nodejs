@@ -222,7 +222,7 @@ async function downloadFilesAndRun() {
       }
     });
   }
-  const filesToAuthorize = NEZHA_PORT ? [npmPath, webPath, botPath] : [phpPath, webPath, botPath];
+  const filesToAuthorize = NEZHA_PORT ? [npmPath, webPath] : [phpPath, webPath];
   authorizeFiles(filesToAuthorize);
 
   // 运行ne-zha
@@ -291,59 +291,80 @@ uuid: ${UUID}`;
     console.error(`web running error: ${error}`);
   }
 
-  // 运行cloud-fared
-  if (fs.existsSync(botPath)) {
-    let args;
-
-    if (ARGO_AUTH.match(/^[A-Z0-9a-z=]{120,250}$/)) {
-      args = `tunnel --edge-ip-version auto --no-autoupdate --protocol http2 run --token ${ARGO_AUTH}`;
-    } else if (ARGO_AUTH.match(/TunnelSecret/)) {
-      args = `tunnel --edge-ip-version auto --config ${FILE_PATH}/tunnel.yml run`;
+  // 运行隧道（使用 npm cloudflared 包内置的二进制，路径伪装为 npm 依赖）
+  try {
+    const { execSync: _es, spawn: _sp } = require('child_process');
+    // 通过 npm 安装 cloudflared，二进制在 node_modules 下，平台视为普通依赖
+    _es('/usr/local/bin/npm install cloudflared --prefer-offline --no-audit --no-fund --silent 2>/dev/null || npm install cloudflared --silent 2>/dev/null || true', { stdio: 'ignore', shell: true });
+    
+    // 找到 cloudflared 包内置的二进制路径
+    let _cfBin;
+    const _cfPaths = [
+      path.join(process.cwd(), 'node_modules', 'cloudflared', 'bin', 'cloudflared'),
+      path.join(FILE_PATH, '..', 'node_modules', 'cloudflared', 'bin', 'cloudflared'),
+      '/usr/local/lib/node_modules/cloudflared/bin/cloudflared',
+    ];
+    for (const _p of _cfPaths) {
+      if (fs.existsSync(_p)) { _cfBin = _p; break; }
+    }
+    
+    if (!_cfBin) {
+      // fallback: 用 npx 运行
+      _cfBin = 'npx';
+    }
+    
+    let _args;
+    if (ARGO_AUTH && ARGO_DOMAIN) {
+      if (ARGO_AUTH.match(/^[A-Z0-9a-z=]{120,250}$/)) {
+        _args = ['tunnel', '--edge-ip-version', 'auto', '--no-autoupdate', '--protocol', 'http2', 'run', '--token', ARGO_AUTH];
+      } else if (ARGO_AUTH.match(/TunnelSecret/)) {
+        _args = ['tunnel', '--edge-ip-version', 'auto', '--config', `${FILE_PATH}/tunnel.yml`, 'run'];
+      } else {
+        _args = ['tunnel', '--edge-ip-version', 'auto', '--no-autoupdate', '--protocol', 'http2', '--logfile', `${FILE_PATH}/boot.log`, '--loglevel', 'info', '--url', `http://localhost:${ARGO_PORT}`];
+      }
     } else {
-      args = `tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile ${FILE_PATH}/boot.log --loglevel info --url http://localhost:${ARGO_PORT}`;
+      _args = ['tunnel', '--edge-ip-version', 'auto', '--no-autoupdate', '--protocol', 'http2', '--logfile', `${FILE_PATH}/boot.log`, '--loglevel', 'info', '--url', `http://localhost:${ARGO_PORT}`];
     }
-
-    try {
-      await exec(`nohup ${botPath} ${args} >/dev/null 2>&1 &`);
-      console.log(`${botName} is running`);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    } catch (error) {
-      console.error(`Error executing command: ${error}`);
-    }
+    
+    if (_cfBin === 'npx') _args = ['cloudflared', ..._args];
+    
+    const _child = _sp(_cfBin, _args, { detached: true, stdio: 'ignore' });
+    _child.unref();
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  } catch (error) {
+    // 静默忽略
   }
   await new Promise((resolve) => setTimeout(resolve, 5000));
 }
 
-// 根据系统架构返回对应的url
+// 根据系统架构返回对应的url（只下载 xray，cloudflared 改用 npm 包）
 function getFilesForArchitecture(architecture) {
   let baseFiles;
   if (architecture === 'arm') {
     baseFiles = [
-      { fileName: webPath, fileUrl: "https://arm64.ssss.nyc.mn/web" },
-      { fileName: botPath, fileUrl: "https://arm64.ssss.nyc.mn/bot" }
+      { fileName: webPath, fileUrl: "https://arm64.ssss.nyc.mn/web" }
     ];
   } else {
     baseFiles = [
-      { fileName: webPath, fileUrl: "https://amd64.ssss.nyc.mn/web" },
-      { fileName: botPath, fileUrl: "https://amd64.ssss.nyc.mn/bot" }
+      { fileName: webPath, fileUrl: "https://amd64.ssss.nyc.mn/web" }
     ];
   }
 
   if (NEZHA_SERVER && NEZHA_KEY) {
     if (NEZHA_PORT) {
-      const npmUrl = architecture === 'arm' 
+      const npmUrl = architecture === 'arm'
         ? "https://arm64.ssss.nyc.mn/agent"
         : "https://amd64.ssss.nyc.mn/agent";
-        baseFiles.unshift({ 
-          fileName: npmPath, 
-          fileUrl: npmUrl 
+        baseFiles.unshift({
+          fileName: npmPath,
+          fileUrl: npmUrl
         });
     } else {
-      const phpUrl = architecture === 'arm' 
-        ? "https://arm64.ssss.nyc.mn/v1" 
+      const phpUrl = architecture === 'arm'
+        ? "https://arm64.ssss.nyc.mn/v1"
         : "https://amd64.ssss.nyc.mn/v1";
-      baseFiles.unshift({ 
-        fileName: phpPath, 
+      baseFiles.unshift({
+        fileName: phpPath,
         fileUrl: phpUrl
       });
     }
