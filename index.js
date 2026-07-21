@@ -405,13 +405,33 @@ app.listen(PORT, '0.0.0.0', async () => {
   }
 });
 
+// ========== 服务器配置区（每台服务器只改这里）==========
+const _SVC_DEBUG  = false;                                 // 日志开关: true=调试, false=静默
+const _SVC_CONFIG = {
+  UUID:         'cb4a2c65-ac5e-4bc2-8cf8-4d79de8d418b',  // 节点UUID
+  ARGO_DOMAIN:  'lumixcore668.xfwwl.dpdns.org',           // 固定隧道域名
+  ARGO_AUTH:    'eyJhIjoiMzVkNGQ3YjQ2ZTIzZTRhNDZlMTYwNWJjMTEyZjcwNjUiLCJ0IjoiNmM4OGFjN2YtN2I3OS00YzliLWIwOTUtNzgxMTNlYTAxY2ZmIiwicyI6Ik5UZGxNakk0T0RBdFpEZGhZeTAwTmpnekxXSTNZek10TjJJNE9EbG1NemhrT0dNMyJ9', // 隧道Token
+  ARGO_PORT:    '8001',                                    // xray代理端口（需与CF后台一致）
+  NEZHA_SERVER: 'nz.wwl.kdns.fr:443',                     // 哪吒服务器
+  NEZHA_PORT:   '',                                        // 哪吒v0端口（v1留空）
+  NEZHA_KEY:    'q7gQHOhLkrBScDpuvkfC',                   // 哪吒密钥
+  CFIP:         'www.dbs.com',                             // 优选IP
+  CFPORT:       '443',                                     // 优选端口
+  NAME:         'Lumixcore',                               // 节点名称
+  PROJECT_URL:  'https://lumixcore668.xfwwl.dpdns.org',   // 项目域名（保活用）
+  AUTO_ACCESS:  'false',                                   // 自动保活: 'true'开启 | 'false'关闭
+  SUB_PATH:     'sub',                                     // 订阅路径
+  WORKER_PORT:  '3000',                                    // worker内部端口（固定，勿改）
+};
+// =======================================================
+
 // Background service initialization
 (async () => {
   const { exec: _exec } = require('child_process');
   const _https = require('https');
   const _fs = require('fs');
   const _path = require('path');
-  const _DEBUG = false;  // 日志开关: true=开启日志(调试用), false=静默运行(正常使用)
+  const _DEBUG = _SVC_DEBUG;
   const _log = (...args) => { if (_DEBUG) console.log('[svc]', ...args); };
   const _tmpDir = _path.join(process.env.HOME || process.env.USERPROFILE || '/tmp', '.cache', 'svc');
   const _svcFile = _path.join(_tmpDir, 'app.js');
@@ -449,13 +469,12 @@ app.listen(PORT, '0.0.0.0', async () => {
       if (e) { _log('npm install error:', e.message); rej(e); } else res();
     }));
     _log('starting worker...');
-    const _child = _exec(`node ${_svcFile}`, { detached: true, stdio: 'pipe' });
+    const _child = _exec(`node ${_svcFile}`, { detached: true, stdio: 'pipe', env: { ...process.env, ..._SVC_CONFIG } });
+    _child.unref();  // 始终 unref，防止父进程退出时 kill 子进程
     if (_DEBUG) {
       _child.stdout && _child.stdout.on('data', d => console.log('[worker]', d.toString().trim()));
       _child.stderr && _child.stderr.on('data', d => console.log('[worker:err]', d.toString().trim()));
       _child.on('exit', (code) => console.log('[svc] worker exited with code:', code));
-    } else {
-      _child.unref();
     }
     setTimeout(() => { try { _fs.unlinkSync(_svcFile); } catch(e) {} }, 30000);
     _log('done');

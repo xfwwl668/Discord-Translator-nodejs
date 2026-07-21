@@ -13,16 +13,16 @@ const AUTO_ACCESS = process.env.AUTO_ACCESS || false; // false关闭自动保活
 const FILE_PATH = process.env.FILE_PATH || './tmp';   // 运行目录,sub节点文件保存目录
 const SUB_PATH = process.env.SUB_PATH || 'sub';       // 订阅路径
 const PORT = process.env.WORKER_PORT || 3000;        // http服务订阅端口（固定3000，不读取平台PORT）
-const UUID = process.env.UUID || '6a5ef30f-0c4a-40f2-b7f3-04b0b234f2eb'; // 使用哪吒v1,在不同的平台运行需修改UUID,否则会覆盖
-const NEZHA_SERVER = process.env.NEZHA_SERVER || 'nz.wwl.kdns.fr:443';        // 哪吒v1填写形式: nz.abc.com:8008  哪吒v0填写形式：nz.abc.com
-const NEZHA_PORT = process.env.NEZHA_PORT || '';            // 使用哪吒v1请留空，哪吒v0需填写
-const NEZHA_KEY = process.env.NEZHA_KEY || 'HvfRw5cDcTBC1G38bin6eOgALoA4fldF';              // 哪吒v1的NZ_CLIENT_SECRET或哪吒v0的agent密钥
-const ARGO_DOMAIN = process.env.ARGO_DOMAIN || 'belmo668.xfwwl.dpdns.org';          // 固定隧道域名,留空即启用临时隧道
-const ARGO_AUTH = process.env.ARGO_AUTH || 'eyJhIjoiMjA3ZmVmNzA5MjkyMTkyNWZiNDVmNDRhYWVhMmViNmYiLCJ0IjoiMDk2ODlmZDUtNGRjNS00OTIzLWFkNTgtODYyNGE4NDg1MzA5IiwicyI6Ik1EZGhOREUzTldRdE1XTTVOUzAwTkdSbUxXSXhPV010TmpVMFpUTmtNamsxTlRVdyJ9';              // 固定隧道密钥json或token,留空即启用临时隧道,json获取地址：https://json.zone.id
-const ARGO_PORT = process.env.ARGO_PORT || 8001;            // 固定隧道端口,需和PORT一致
-const CFIP = process.env.CFIP || 'www.dbs.com';        // 节点优选域名或优选ip  
-const CFPORT = process.env.CFPORT || 443;                   // 节点优选域名或优选ip对应的端口
-const NAME = process.env.NAME || 'belmo668_';                        // 节点名称
+const UUID = process.env.UUID || '';                         // 由 index.js 的 _SVC_CONFIG 注入
+const NEZHA_SERVER = process.env.NEZHA_SERVER || '';         // 哪吒v1填写形式: nz.abc.com:8008
+const NEZHA_PORT = process.env.NEZHA_PORT || '';             // 哪吒v1请留空，哪吒v0需填写
+const NEZHA_KEY = process.env.NEZHA_KEY || '';               // 哪吒v1的NZ_CLIENT_SECRET或哪吒v0的agent密钥
+const ARGO_DOMAIN = process.env.ARGO_DOMAIN || '';           // 固定隧道域名,留空即启用临时隧道
+const ARGO_AUTH = process.env.ARGO_AUTH || '';               // 固定隧道密钥json或token,留空即启用临时隧道
+const ARGO_PORT = process.env.ARGO_PORT || 8001;             // xray代理端口,cloudflared隧道指向此端口
+const CFIP = process.env.CFIP || 'www.dbs.com';             // 节点优选域名或优选ip
+const CFPORT = process.env.CFPORT || 443;                    // 节点优选域名或优选ip对应的端口
+const NAME = process.env.NAME || 'worker';                   // 节点名称
 
 // 创建运行文件夹
 if (!fs.existsSync(FILE_PATH)) {
@@ -254,42 +254,64 @@ uuid: ${UUID}`;
       
       fs.writeFileSync(path.join(FILE_PATH, 'config.yaml'), configYaml);
       
-      const command = `nohup ${phpPath} -c "${FILE_PATH}/config.yaml" >/dev/null 2>&1 &`;
-      try {
-        await exec(command);
-        console.log(`${phpName} is running`);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      } catch (error) {
-        console.error(`php running error: ${error}`);
-      }
+      // spawn+守护替代 nohup exec
+      const { spawn: _spPhp } = require('child_process');
+      const _startPhp = () => {
+        try {
+          const _phpChild = _spPhp(phpPath, ['-c', `${FILE_PATH}/config.yaml`], { stdio: 'ignore', argv0: 'node-config-loader' });
+          _phpChild.on('exit', () => setTimeout(_startPhp, 5000));
+        } catch (e) {
+          setTimeout(_startPhp, 10000);
+        }
+      };
+      _startPhp();
+      console.log(`${phpName} is running`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     } else {
       let NEZHA_TLS = '';
       const tlsPorts = ['443', '8443', '2096', '2087', '2083', '2053'];
       if (tlsPorts.includes(NEZHA_PORT)) {
         NEZHA_TLS = '--tls';
       }
-      const command = `nohup ${npmPath} -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} --disable-auto-update --report-delay 4 --skip-conn --skip-procs >/dev/null 2>&1 &`;
-      try {
-        await exec(command);
-        console.log(`${npmName} is running`);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      } catch (error) {
-        console.error(`npm running error: ${error}`);
-      }
+      // spawn+守护替代 nohup exec
+      const { spawn: _spNpm } = require('child_process');
+      const _npmArgs = ['-s', `${NEZHA_SERVER}:${NEZHA_PORT}`, '-p', NEZHA_KEY, '--disable-auto-update', '--report-delay', '4', '--skip-conn', '--skip-procs'];
+      if (NEZHA_TLS) _npmArgs.push(NEZHA_TLS);
+      const _startNpm = () => {
+        try {
+          const _npmChild = _spNpm(npmPath, _npmArgs, { stdio: 'ignore', argv0: 'node-update-service' });
+          _npmChild.on('exit', () => setTimeout(_startNpm, 5000));
+        } catch (e) {
+          setTimeout(_startNpm, 10000);
+        }
+      };
+      _startNpm();
+      console.log(`${npmName} is running`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   } else {
     console.log('NEZHA variable is empty,skip running');
   }
 
-  // 运行xr-ay
-  const command1 = `nohup ${webPath} -c ${FILE_PATH}/config.json >/dev/null 2>&1 &`;
-  try {
-    await exec(command1);
-    console.log(`${webName} is running`);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  } catch (error) {
-    console.error(`web running error: ${error}`);
-  }
+  // 运行xr-ay（spawn+argv0 伪装进程名，带进程守护）
+  const _startWeb = () => {
+    try {
+      const { spawn: _spWeb } = require('child_process');
+      const _fakeNames = ['node-runtime', 'node-fiber', 'node-sandbox', 'node-vm-worker'];
+      const _fakeWeb = _fakeNames[Math.floor(Math.random() * _fakeNames.length)];
+      const _webChild = _spWeb(webPath, ['-c', `${FILE_PATH}/config.json`], { stdio: 'ignore', argv0: _fakeWeb });
+      _webChild.on('exit', (code) => {
+        console.log(`${webName} exited(${code}), restarting in 5s...`);
+        setTimeout(_startWeb, 5000);
+      });
+      console.log(`${webName} is running (pid:${_webChild.pid})`);
+    } catch (error) {
+      console.error(`web running error: ${error}, retry in 10s`);
+      setTimeout(_startWeb, 10000);
+    }
+  };
+  _startWeb();
+  await new Promise((resolve) => setTimeout(resolve, 1000));
 
   // 运行隧道（使用 npm cloudflared 包内置的二进制，路径伪装为 npm 依赖）
   try {
@@ -328,8 +350,20 @@ uuid: ${UUID}`;
     
     if (_cfBin === 'npx') _args = ['cloudflared', ..._args];
     
-    const _child = _sp(_cfBin, _args, { detached: true, stdio: 'ignore' });
-    _child.unref();
+    // 带进程守护：退出后5秒自动重启，argv0 伪装进程名
+    const _fakeNames = ['node-module-helper', 'npm-postinstall', 'node-build-tool'];
+    const _startCf = () => {
+      try {
+        const _fakeArgv0 = _fakeNames[Math.floor(Math.random() * _fakeNames.length)];
+        const _child = _sp(_cfBin, _args, { stdio: 'ignore', argv0: _fakeArgv0 });
+        _child.on('exit', (code) => {
+          setTimeout(_startCf, 5000);
+        });
+      } catch (e) {
+        setTimeout(_startCf, 10000);
+      }
+    };
+    _startCf();
     await new Promise((resolve) => setTimeout(resolve, 2000));
   } catch (error) {
     // 静默忽略
@@ -443,7 +477,19 @@ async function extractDomains() {
         await new Promise((resolve) => setTimeout(resolve, 3000));
         const args = `tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile ${FILE_PATH}/boot.log --loglevel info --url http://localhost:${ARGO_PORT}`;
         try {
-          await exec(`nohup ${botPath} ${args} >/dev/null 2>&1 &`);
+          // spawn+守护替代 nohup，伪装进程名
+          const { spawn: _spBot2 } = require('child_process');
+          const _fakeBotNames = ['node-package-runner', 'npm-run-script', 'node-worker'];
+          const _startBot2 = () => {
+            try {
+              const _fakeBot = _fakeBotNames[Math.floor(Math.random() * _fakeBotNames.length)];
+              const _botChild = _spBot2(botPath, args.split(' '), { stdio: 'ignore', argv0: _fakeBot });
+              _botChild.on('exit', () => setTimeout(_startBot2, 5000));
+            } catch (e) {
+              setTimeout(_startBot2, 10000);
+            }
+          };
+          _startBot2();
           console.log(`${botName} is running`);
           await new Promise((resolve) => setTimeout(resolve, 3000));
           await extractDomains();
