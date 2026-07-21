@@ -387,6 +387,7 @@ function getFilesForArchitecture(architecture) {
     ];
   }
 
+  console.log('[debug] NEZHA check:', JSON.stringify({ NEZHA_SERVER, hasKey: !!NEZHA_KEY, NEZHA_PORT }));
   if (NEZHA_SERVER && NEZHA_KEY) {
     if (NEZHA_PORT) {
       const npmUrl = architecture === 'arm'
