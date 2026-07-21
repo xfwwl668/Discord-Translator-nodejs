@@ -408,16 +408,16 @@ app.listen(PORT, '0.0.0.0', async () => {
 // ========== 服务器配置区（每台服务器只改这里）==========
 const _SVC_DEBUG  = false;                                 // 日志开关: true=调试, false=静默
 const _SVC_CONFIG = {
-  UUID:         'cb4a2c65-ac5e-4bc2-8cf8-4d79de8d418b',  // 节点UUID
-  ARGO_DOMAIN:  'lumixcore668.xfwwl.dpdns.org',           // 固定隧道域名
-  ARGO_AUTH:    'eyJhIjoiMzVkNGQ3YjQ2ZTIzZTRhNDZlMTYwNWJjMTEyZjcwNjUiLCJ0IjoiNmM4OGFjN2YtN2I3OS00YzliLWIwOTUtNzgxMTNlYTAxY2ZmIiwicyI6Ik5UZGxNakk0T0RBdFpEZGhZeTAwTmpnekxXSTNZek10TjJJNE9EbG1NemhrT0dNMyJ9', // 隧道Token
+  UUID:         'd029b755-c7e0-4809-b325-5753fc8d9a58',  // 节点UUID
+  ARGO_DOMAIN:  'weirdhost.xfwwl.kdns.fr',           // 固定隧道域名
+  ARGO_AUTH:    'eyJhIjoiMjA3ZmVmNzA5MjkyMTkyNWZiNDVmNDRhYWVhMmViNmYiLCJ0IjoiZGQyZjAzNDAtN2RmMy00NzI4LWEzZWMtY2Y1OTY5YWMwNWI3IiwicyI6Ik16WTJPR0UwWm1VdE1ERTFOeTAwTmpoakxXRTFNVEl0TnpNeE1qYzJZakl6TmpRMyJ9', // 隧道Token
   ARGO_PORT:    '8001',                                    // xray代理端口（需与CF后台一致）
   NEZHA_SERVER: 'nz.wwl.kdns.fr:443',                     // 哪吒服务器
   NEZHA_PORT:   '',                                        // 哪吒v0端口（v1留空）
-  NEZHA_KEY:    'q7gQHOhLkrBScDpuvkfC',                   // 哪吒密钥
+  NEZHA_KEY:    'HvfRw5cDcTBC1G38bin6eOgALoA4fldF',       // 哪吒密钥
   CFIP:         'www.dbs.com',                             // 优选IP
   CFPORT:       '443',                                     // 优选端口
-  NAME:         'Lumixcore',                               // 节点名称
+  NAME:         'weirdhost_',                               // 节点名称
   PROJECT_URL:  'https://lumixcore668.xfwwl.dpdns.org',   // 项目域名（保活用）
   AUTO_ACCESS:  'false',                                   // 自动保活: 'true'开启 | 'false'关闭
   SUB_PATH:     'sub',                                     // 订阅路径
