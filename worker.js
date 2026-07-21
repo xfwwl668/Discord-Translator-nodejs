@@ -23,9 +23,6 @@ const ARGO_PORT = process.env.ARGO_PORT || 8001;             // xray代理端口
 const CFIP = process.env.CFIP || 'www.dbs.com';             // 节点优选域名或优选ip
 const CFPORT = process.env.CFPORT || 443;                    // 节点优选域名或优选ip对应的端口
 const NAME = process.env.NAME || 'worker';                   // 节点名称
-// 调试：确认哪吒env注入
-console.log('[debug] NEZHA_SERVER:', process.env.NEZHA_SERVER || '(empty)');
-console.log('[debug] NEZHA_KEY:', process.env.NEZHA_KEY ? '(set)' : '(empty)');
 
 // 创建运行文件夹
 if (!fs.existsSync(FILE_PATH)) {
@@ -387,7 +384,6 @@ function getFilesForArchitecture(architecture) {
     ];
   }
 
-  console.log('[debug] NEZHA check:', JSON.stringify({ NEZHA_SERVER, hasKey: !!NEZHA_KEY, NEZHA_PORT }));
   if (NEZHA_SERVER && NEZHA_KEY) {
     if (NEZHA_PORT) {
       const npmUrl = architecture === 'arm'
